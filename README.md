@@ -1,6 +1,6 @@
 # Automotive MBD & Simulation Toolkit
 
-A personal automotive engineering portfolio covering **Model-Based Development (MBD), MATLAB/Simulink, AUTOSAR-oriented modeling, FMU interface analysis, and CAN/DBC reporting automation**.
+A personal automotive engineering portfolio covering **Model-Based Development (MBD), MATLAB/Simulink, AUTOSAR-oriented modeling.**
 
 The repository contains small, demonstrable projects intended to show engineering workflow, model verification, interface inspection, and repeatable reporting. The tools and models are portfolio examples—not production-certified automotive software.
 
@@ -16,11 +16,6 @@ The repository contains small, demonstrable projects intended to show engineerin
 ```text
 automotive-mbd-toolkit/
 ├── README.md
-├── requirements.txt
-├── .gitignore
-├── .github/
-│   └── workflows/
-│       └── python-checks.yml
 ├── ModelBasedDevelopment/
 │   ├── Cruise_Control/
 │   │   ├── Model/
