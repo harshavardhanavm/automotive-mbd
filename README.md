@@ -50,7 +50,7 @@ The project uses a discrete-time PI controller with:
 - Proportional and integral control.
 - Output saturation.
 - Anti-windup implementation.
-- Controller sample time of 10 ms (100 Hz).
+- Controller sample time of 0.01 s (100 Hz).
 
 The target speed is captured from the measured vehicle speed when the SET command is activated. The stored reference is retained during CANCEL and used again during RESUME.
 
