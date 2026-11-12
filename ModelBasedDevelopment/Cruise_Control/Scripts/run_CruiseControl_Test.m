@@ -1,150 +1,247 @@
-function result = run_CruiseControl_Test( ...
-    TestID, V0, Vtarget, RoadGrade, StopTime)
 
-%% Generic Cruise Control Test Runner
-%
-% Inputs:
-%   TestID      - Test case identifier
-%   V0          - Initial vehicle speed [m/s]
-%   Vtarget     - Target vehicle speed [m/s]
-%   RoadGrade   - Road grade [deg]
-%   StopTime    - Simulation duration [s]
-%
-% Output:
-%   result      - Structure containing test results
+function result = run_CruiseControl_Test(c, model)
 
-%% Model
-model = 'CruiseControl_V1';
+% =========================================================
+% RUN ONE CRUISE CONTROL TEST
+% =========================================================
 
-load_system(model);
+simIn = Simulink.SimulationInput(model);
 
-%% Initialize parameters
-run('CC_init.m');
+% ---------------------------------------------------------
+% 1. Set vehicle inputs
+% ---------------------------------------------------------
 
-%% Set test inputs
-% These variables must be used by the Simulink model.
-V0 = V0;
-Vtarget = Vtarget;
-RoadGrade = RoadGrade;
+simIn = simIn.setVariable('V0', c.V0);
+simIn = simIn.setVariable('Vtarget', c.Vtarget);
+simIn = simIn.setVariable('RoadGrade', c.RoadGrade);
+simIn = simIn.setVariable('FaultInjection', c.FaultInjection);
 
-%% Simulation
-set_param(model, 'StopTime', num2str(StopTime));
+% ---------------------------------------------------------
+% 2. Create command input profiles
+% ---------------------------------------------------------
 
-simOut = sim(model);
+t = c.StopTime;
 
-%% Read simulation results
+% Default: command remains at its initial value
+CC_Profile = [0 c.CC_Switch; t c.CC_Switch];
 
-VehicleSpeed_ts = simOut.VehicleSpeed;
-Throttle_ts     = simOut.Throttle;
-Brake_ts        = simOut.Brake;
+SET_Profile = [0 0; t 0];
+CANCEL_Profile = [0 0; t 0];
+RESUME_Profile = [0 0; t 0];
+Brake_Profile = [0 0; t 0];
 
-VehicleSpeed = VehicleSpeed_ts.data;
-Throttle     = Throttle_ts.data;
-Brake        = Brake_ts.data;
-Time         = VehicleSpeed_ts.time;
+% ---------------------------------------------------------
+% 3. Apply command sequences
+% ---------------------------------------------------------
 
-%% Basic metrics
+switch c.CheckType
 
-FinalSpeed = VehicleSpeed(end);
+    case 'SEQUENCE'
 
-FinalError = abs(Vtarget - FinalSpeed);
+        % SET pulse: 1.0 to 1.1 seconds
+SET_Profile = [0 0; 0.99 0;
+                       1.0 1;
+                       1.1 0;
+                       t 0];
 
-MaxThrottle = max(Throttle);
-MinThrottle = min(Throttle);
+CANCEL_Profile = [0 0; 2.99 0;
+                          3.0 1;
+                          3.1 0;
+                          t 0];
 
-MaxBrake = max(Brake);
-MinBrake = min(Brake);
+RESUME_Profile = [0 0;4.99 0;
+                          5.0 1;
+                          5.1 0;
+                          t 0];
 
-%% Steady-state analysis
+    case 'BRAKE'
 
-SteadyStateWindow = 5;
+        % First activate cruise using SET
+        SET_Profile = [0 0; 1.0 1; 1.1 0; t 0];
 
-SteadyStateStart = StopTime - SteadyStateWindow;
+        % Then press brake
+        Brake_Profile = [0 0; 3.0 1; 3.1 0; t 0];
 
-SS_Index = Time >= SteadyStateStart;
-
-SteadyStateSpeed = VehicleSpeed(SS_Index);
-
-SteadyStateError = abs(Vtarget - SteadyStateSpeed);
-
-SteadyStateErrorMax = max(SteadyStateError);
-
-%% Pass / Fail criteria
-
-SteadyStateSpeedPass = ...
-    SteadyStateErrorMax < 0.5;
-
-ThrottleLimitPass = ...
-    (MaxThrottle <= 1.0) && ...
-    (MinThrottle >= 0.0);
-
-BrakeLimitPass = ...
-    (MaxBrake <= 1.0) && ...
-    (MinBrake >= 0.0);
-
-TestPass = ...
-    SteadyStateSpeedPass && ...
-    ThrottleLimitPass && ...
-    BrakeLimitPass;
-
-%% Store results
-
-result.TestID = TestID;
-
-result.V0 = V0;
-result.Vtarget = Vtarget;
-result.RoadGrade = RoadGrade;
-result.StopTime = StopTime;
-
-result.FinalSpeed = FinalSpeed;
-result.FinalError = FinalError;
-
-result.SteadyStateErrorMax = SteadyStateErrorMax;
-
-result.MaxThrottle = MaxThrottle;
-result.MinThrottle = MinThrottle;
-
-result.MaxBrake = MaxBrake;
-result.MinBrake = MinBrake;
-
-result.Pass = TestPass;
-
-%% Print result
-
-fprintf('\n');
-fprintf('============================================\n');
-fprintf('        %s CRUISE CONTROL TEST             \n', TestID);
-fprintf('============================================\n');
-
-fprintf('Initial Speed         : %.2f m/s\n', V0);
-fprintf('Target Speed          : %.2f m/s\n', Vtarget);
-fprintf('Road Grade            : %.2f deg\n', RoadGrade);
-
-fprintf('--------------------------------------------\n');
-
-fprintf('Final Speed           : %.2f m/s\n', FinalSpeed);
-fprintf('Final Error           : %.2f m/s\n', FinalError);
-
-fprintf('Steady-State Window   : %.1f s\n', ...
-    SteadyStateWindow);
-
-fprintf('Steady-State Max Error: %.2f m/s\n', ...
-    SteadyStateErrorMax);
-
-fprintf('Maximum Throttle      : %.3f\n', MaxThrottle);
-fprintf('Minimum Throttle      : %.3f\n', MinThrottle);
-
-fprintf('Maximum Brake         : %.3f\n', MaxBrake);
-fprintf('Minimum Brake         : %.3f\n', MinBrake);
-
-fprintf('--------------------------------------------\n');
-
-if TestPass
-    fprintf('RESULT                : PASS\n');
-else
-    fprintf('RESULT                : FAIL\n');
 end
 
-fprintf('============================================\n');
+% ---------------------------------------------------------
+% 4. Pass profiles to Simulink
+% ---------------------------------------------------------
+
+simIn = simIn.setVariable('CC_Switch', CC_Profile);
+simIn = simIn.setVariable('SET_Command', SET_Profile);
+simIn = simIn.setVariable('CANCEL_Command', CANCEL_Profile);
+simIn = simIn.setVariable('RESUME_Command', RESUME_Profile);
+simIn = simIn.setVariable('Brake_Switch', Brake_Profile);
+
+simIn = simIn.setModelParameter('StopTime', num2str(t));
+
+% ---------------------------------------------------------
+% 5. Run simulation
+% ---------------------------------------------------------
+
+out = sim(simIn);
+
+% ---------------------------------------------------------
+% 6. Read logged signals
+% ---------------------------------------------------------
+
+mode = readSignal(out, 'Mode');
+enable = readSignal(out, 'CCEnable');
+fault = readSignal(out, 'SensorFault');
+reference = readSignal(out, 'SpeedReference');
+speed = readSignal(out, 'VehicleSpeed');
+cancel = readSignal(out, 'CANCEL_Command');
+
+
+% ---------------------------------------------------------
+% 7. Initialize result
+% ---------------------------------------------------------
+
+result.ID = c.ID;
+result.Description = c.Description;
+result.Pass = false;
+result.Message = '';
+
+result.FinalMode = mode(end);
+result.FinalEnable = enable(end);
+result.FaultDetected = any(fault ~= 0);
+
+% ---------------------------------------------------------
+% 8. Test-specific checks
+% ---------------------------------------------------------
+
+switch c.CheckType
+
+    case 'OFF'
+
+        result.Pass = (mode(end) == 0);
+
+    case 'STANDBY'
+
+        result.Pass = (mode(end) == 1);
+
+    case 'SEQUENCE'
+
+        % SET should capture the speed reference
+        % at approximately 1 second.
+        capturedSpeed = speedAt(out, 'VehicleSpeed', 1.0);
+        storedSpeed = speedAt(out, 'SpeedReference', 1.0);
+
+        % CANCEL should return to standby.
+        cancelMode = speedAt(out, 'Mode', 4.0);
+
+        % RESUME should reactivate cruise control.
+        resumeMode = speedAt(out, 'Mode', 6.0);
+
+        result.Pass = ...
+            abs(capturedSpeed - storedSpeed) < 0.1 && ...
+            round(cancelMode) == 1 && ...
+            round(resumeMode) == 2;
+
+        fprintf('\n--- CC-003 DEBUG ---\n');
+
+        fprintf('Captured speed : %.3f\n', capturedSpeed);
+        fprintf('Stored speed   : %.3f\n', storedSpeed);
+        fprintf('Mode after CANCEL : %.0f\n', cancelMode);
+        fprintf('Mode after RESUME : %.0f\n', resumeMode);
+        
+        fprintf('Final mode : %.0f\n', mode(end));
+        fprintf('Final CC Enable : %.0f\n', enable(end));
+
+        
+        fprintf('\n--- CANCEL SIGNAL CHECK ---\n');
+
+        cancelSignal = readSignal(out, 'CANCEL_Command');
+
+        fprintf('Maximum CANCEL value: %.0f\n', max(cancelSignal));
+
+        modeSignal = readSignal(out, 'Mode');
+
+    case 'BRAKE'
+
+        % Brake should deactivate cruise control.
+        brakeMode = speedAt(out, 'Mode', 4.0);
+
+        result.Pass = ...
+            round(brakeMode) == 1 && enable(end) == 0;
+
+    case 'FAULT'
+
+        result.Pass = ...
+            result.FaultDetected && ...
+            round(mode(end)) == 1 && ...
+            enable(end) == 0;
+
+    case 'HEALTHY'
+
+        result.Pass = ~result.FaultDetected;
+
+end
+
+% ---------------------------------------------------------
+% 9. Final test status
+% ---------------------------------------------------------
+
+if result.Pass
+    result.Message = 'PASS';
+else
+    result.Message = 'FAIL - Check expected behaviour';
+end
+
+end
+
+
+% =========================================================
+% READ A LOGGED SIGNAL
+% =========================================================
+
+function data = readSignal(out, name)
+
+signal = out.get(name);
+
+if isa(signal, 'timeseries')
+    data = squeeze(signal.Data);
+
+elseif isstruct(signal) && isfield(signal, 'signals')
+    data = squeeze(signal.signals.values);
+
+else
+    data = squeeze(signal);
+
+end
+
+data = data(:);
+
+end
+
+
+% =========================================================
+% READ SIGNAL VALUE AT A PARTICULAR TIME
+% =========================================================
+
+function value = speedAt(out, name, targetTime)
+
+signal = out.get(name);
+
+if isa(signal, 'timeseries')
+
+    time = signal.Time(:);
+    data = squeeze(signal.Data);
+    data = data(:);
+
+elseif isstruct(signal) && isfield(signal, 'signals')
+
+    time = signal.time(:);
+    data = squeeze(signal.signals.values);
+    data = data(:);
+
+else
+    error('Signal %s must be logged as Timeseries or Structure With Time.', name);
+end
+
+[~, index] = min(abs(time - targetTime));
+
+value = data(index);
 
 end
