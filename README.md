@@ -166,7 +166,7 @@ The projects follow a practical Model-Based Development workflow:
              |
              v
        SIL Verification
-         (Planned)
+        
 ```
 
 The workflow is progressively extended as new verification activities are implemented.
@@ -200,16 +200,6 @@ The current Cruise Control project includes:
 - Sensor fault injection and detection.
 - Automated MIL regression testing.
 - Signal-level result verification.
-
-### Planned Improvements
-
-- Expand requirements-to-test traceability.
-- Add further boundary-value and robustness scenarios.
-- Improve automated test reporting.
-- Perform Software-in-the-Loop (SIL) verification.
-- Explore generated-code verification and additional automotive development workflows.
-
-SIL and production-target validation are not claimed as completed activities.
 
 ---
 
