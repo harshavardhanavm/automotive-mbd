@@ -276,7 +276,10 @@ Two test groups are maintained separately:
 
 | Test Group | Purpose |
 |---|---|
+| TC-001 to TC-005 | performance-oriented test group |
 | CC-001 to CC-009 | Cruise control functional MIL test group |
+
+The test groups must not be combined when reporting test execution results.
 
 The requirements workbook is the source of truth for detailed requirement descriptions, acceptance criteria, and requirement-to-test mappings.
 
@@ -311,6 +314,7 @@ The functional test group contains nine test cases.
 
 These results represent the recorded functional MIL test execution.
 
+They do not establish code-generation correctness, SIL equivalence, or production-level safety compliance.
 
 ## 9.3 Test Execution Script
 
@@ -454,13 +458,23 @@ automotive-mbd/
         |
         +-- Scripts/
 		|   |
-		|	+--CC_init.m
-		|	+-- CC_TestCases.m
-		|	+-- run_CruiseControl_Test.m
-		|	+-- run_All_CruiseControl_Tests.m
+		|   +--PerformanceTests/
+		|   |  |  
+		|	|  +--run_All_TC_Tests.m
+		|	|  +--run_TC_Test.m
+		|   |  +--TC_TestCases.m
+		|	|
+		|   +--FunctionalTests/
+		|   |   |
+        |	|	+-- CC_TestCases.m
+		|	|	+-- run_All_CruiseControl_Tests.m
+		|   |   +-- CC_TestCases.m
         +-- Model/
 		|   |
 		|	+--CruiseControl_V1.slx
+		+--Parameters/
+		   | 
+		   +--CC_init.m
 ```
 
 The structure above describes the intended organization. Keep only files and folders that actually exist in the repository.
@@ -480,4 +494,4 @@ The project provides a foundation for further work in controller performance ver
 **Project:** Automotive Cruise Control System  
 **Development Methodology:** Model-Based Development  
 **Verification Level Completed:** Model-in-the-Loop functional testing  
-**Functional MIL Result:** 9/9 Passed
+**Functional MIL Result:** 14/14 Passed

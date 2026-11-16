@@ -236,6 +236,10 @@ elseif isstruct(signal) && isfield(signal, 'signals')
     data = squeeze(signal.signals.values);
     data = data(:);
 
+elseif isa(signal.Values, 'timeseries')
+    time = signal.Values.time(:);
+    data = squeeze(signal.Values.data);
+    data = data(:);
 else
     error('Signal %s must be logged as Timeseries or Structure With Time.', name);
 end
